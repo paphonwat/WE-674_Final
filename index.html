@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emotion Detection</title>
+    <link rel="stylesheet" href="styles/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Emotion Checking</h1>
+        <p>Please Upload Picture</p>
+        <input type="file" id="uploadImage" accept="image/*">
+        <label for="uploadImage">Upload Picture</label>
+        <canvas id="canvas" width="300" height="300"></canvas>
+        <div id="result-container">No result yet</div>
+    </div>
+    <script>
+        const URL = "./My_tiny_image_model/";
+
+        let model;
+
+        async function init() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+            try {
+                model = await tmImage.load(modelURL, metadataURL);
+                console.log("Model loaded");
+            } catch (error) {
+                console.error("Error loading model:", error);
+            }
+        }
+
+        async function predictEmotion(file) {
+            const canvas = document.getElementById("canvas");
+            const ctx = canvas.getContext("2d");
+            const img = new Image();
+
+            // เมื่อโหลดภาพสำเร็จ
+            img.onload = async () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+                try {
+                    console.log("Predicting...");
+                    const prediction = await model.predict(canvas);
+                    const topPrediction = prediction.reduce((prev, current) => 
+                        prev.probability > current.probability ? prev : current
+                    );
+
+                    // แสดงผลอารมณ์ที่มีโอกาสสูงที่สุด
+                    document.getElementById("result-container").innerHTML = `
+                        <div class="emotion-result">Emotion: ${topPrediction.className}</div>
+                        <div class="emotion-score">Confidence: ${topPrediction.probability.toFixed(2)}</div>
+                    `;
+                } catch (error) {
+                    console.error("Error predicting emotion:", error);
+                }
+            };
+
+            // เมื่อเกิดปัญหาในการโหลดภาพ
+            img.onerror = () => {
+                console.error("Error loading image. Please try again.");
+                alert("Error loading image. Please try again.");
+            };
+
+            img.src = window.URL.createObjectURL(file);
+        }        
+
+        document.getElementById("uploadImage").addEventListener("change", (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                console.log(`File selected: ${file.name}`);
+                predictEmotion(file);
+            } else {
+                console.error("No file selected.");
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
